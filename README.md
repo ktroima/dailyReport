@@ -46,6 +46,7 @@ launchctl load ~/Library/LaunchAgents/com.workmanagement.evening.plist
 ### 日報の編集
 
 以下のコマンドを入力すると日報入力が開始されます。対話形式で回答していく形で入力が進みます。
+
 フロー: タスク入力→メモ→工数→追加の有無→（繰り返し）→1日の総括メモ→翌日のタスク入力→保存して終了。
 
 ```bash
