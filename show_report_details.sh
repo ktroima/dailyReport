@@ -78,13 +78,13 @@ ESCAPED_MESSAGE=$(echo "$DETAIL_MESSAGE" | sed "s/'/\\\\'/g" | sed 's/"/\\"/g')
 
 osascript <<EOF
 set detailText to "${ESCAPED_MESSAGE}"
-set maxLength to 1000
+set maxLength to ${DIALOG_MAX_LENGTH}
 if length of detailText > maxLength then
     set detailText to text 1 thru maxLength of detailText & "\n\n(内容が長いため一部を表示しています)"
 end if
 try
-    set response to display dialog detailText buttons {"閉じる", "ファイルを開く"} default button "閉じる" with title "日報詳細: ${TARGET_DATE}" with icon note giving up after 30
-    if button returned of response is "ファイルを開く" then
+    set response to display dialog detailText buttons {"${DIALOG_BUTTON_CLOSE}", "${DIALOG_BUTTON_OPEN}"} default button "${DIALOG_BUTTON_CLOSE}" with title "日報詳細: ${TARGET_DATE}" with icon note giving up after ${DIALOG_TIMEOUT}
+    if button returned of response is "${DIALOG_BUTTON_OPEN}" then
         do shell script "open '${DAILY_REPORT}'"
     end if
 on error

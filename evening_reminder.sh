@@ -21,7 +21,7 @@ if [ -f "$DAILY_REPORT" ]; then
         NOTES_COUNT=$(jq '.notes | length' "$DAILY_REPORT" 2>/dev/null)
         
         # タスクの詳細を取得
-        TASK_LIST=$(jq -r '.tasks[] | "・\(.title) (\(.hours)時間)"' "$DAILY_REPORT" 2>/dev/null | head -3 | tr '\n' ' ')
+        TASK_LIST=$(jq -r '.tasks[] | "・\(.title) (\(.hours)時間)"' "$DAILY_REPORT" 2>/dev/null | head -${TASK_DISPLAY_LIMIT} | tr '\n' ' ')
         TOTAL_HOURS=$(jq '[.tasks[] | .hours] | add // 0' "$DAILY_REPORT" 2>/dev/null)
         
         if [ "$PENDING_TASKS" -gt 0 ]; then
@@ -33,12 +33,12 @@ if [ -f "$DAILY_REPORT" ]; then
             
             # 通知を表示（クリックで詳細表示）
             osascript -e "display notification \"${SUMMARY}\" with title \"業務終了 - 今日の日報を記入\" sound name \"${NOTIFICATION_SOUND}\""
-            
+
             # 通知の後に詳細表示のオプションを提供
-            sleep 1
+            sleep ${NOTIFICATION_DELAY}
             osascript <<EOF
-set response to display dialog "日報の詳細を表示しますか？" buttons {"いいえ", "はい"} default button "はい" with title "業務終了リマインダー" with icon note
-if button returned of response is "はい" then
+set response to display dialog "日報の詳細を表示しますか？" buttons {"${DIALOG_BUTTON_NO}", "${DIALOG_BUTTON_YES}"} default button "${DIALOG_BUTTON_YES}" with title "業務終了リマインダー" with icon note
+if button returned of response is "${DIALOG_BUTTON_YES}" then
     do shell script "'${WORK_DIR}/show_report_details.sh' '${TODAY}'"
 end if
 EOF
@@ -49,10 +49,10 @@ EOF
             osascript -e "display notification \"${SUMMARY}\" with title \"業務終了 - 今日の日報を記入\" sound name \"${NOTIFICATION_SOUND}\""
             
             # 通知の後に詳細表示のオプションを提供
-            sleep 1
+            sleep ${NOTIFICATION_DELAY}
             osascript <<EOF
-set response to display dialog "日報の詳細を表示しますか？" buttons {"いいえ", "はい"} default button "はい" with title "業務終了リマインダー" with icon note
-if button returned of response is "はい" then
+set response to display dialog "日報の詳細を表示しますか？" buttons {"${DIALOG_BUTTON_NO}", "${DIALOG_BUTTON_YES}"} default button "${DIALOG_BUTTON_YES}" with title "業務終了リマインダー" with icon note
+if button returned of response is "${DIALOG_BUTTON_YES}" then
     do shell script "'${WORK_DIR}/show_report_details.sh' '${TODAY}'"
 end if
 EOF
