@@ -30,4 +30,36 @@ EVENING_MINUTE=0
 # 通知音（Glass, Basso, Blow, Bottle, Frog, Funk, Hero, Morse, Ping, Pop, Purr, Sosumi, Submarine, Tink）
 NOTIFICATION_SOUND="Glass"
 
+# ============================================
+# 日報フォーマット設定
+# ============================================
+
+# タイムゾーン
+TIMEZONE="Asia/Tokyo"
+
+# 日付フォーマット
+DATE_FORMAT="%Y-%m-%d"
+DATETIME_FORMAT="%Y-%m-%dT%H:%M:%S"
+DATE_REGEX="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+
+# タスクID設定
+TASK_ID_PREFIX="task-"
+TASK_ID_PADDING=3
+
+# デフォルト値
+DEFAULT_TASK_HOURS=0
+DEFAULT_TASK_COUNTER=1
+DEFAULT_PRIORITY="medium"
+
+# 優先度の選択肢
+PRIORITY_LOW="low"
+PRIORITY_MEDIUM="medium"
+PRIORITY_HIGH="high"
+
+# UI設定
+SEPARATOR_LINE="=========================================="
+
+# JSON空配列
+EMPTY_JSON_ARRAY="[]"
+
 
