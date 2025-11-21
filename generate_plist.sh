@@ -2,11 +2,19 @@
 
 # plistファイル生成スクリプト
 # config.shの設定を読み込んで、launchd用のplistファイルを生成します
+# 生成されたplistファイルは、~/Library/LaunchAgents/ にコピーして使用します
+# 使い方: ./generate_plist.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/config.sh"
 
 # 業務開始時リマインダーのplist生成
+# launchdのplistファイル形式:
+# - Label: サービスの一意な識別子
+# - ProgramArguments: 実行するコマンドとその引数
+# - StartCalendarInterval: 実行スケジュール（時刻指定）
+# - RunAtLoad: ロード時に実行するか（false: しない）
+# - StandardOutPath/StandardErrorPath: ログファイルのパス
 cat > "${SCRIPT_DIR}/com.workmanagement.morning.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -69,5 +77,12 @@ EOF
 echo "plistファイルを生成しました:"
 echo "  - com.workmanagement.morning.plist (${MORNING_HOUR}:${MORNING_MINUTE})"
 echo "  - com.workmanagement.evening.plist (${EVENING_HOUR}:${EVENING_MINUTE})"
+echo ""
+echo "次のステップ:"
+echo "1. plistファイルを~/Library/LaunchAgents/にコピー"
+echo "   cp com.workmanagement.*.plist ~/Library/LaunchAgents/"
+echo "2. launchdにロード"
+echo "   launchctl load ~/Library/LaunchAgents/com.workmanagement.morning.plist"
+echo "   launchctl load ~/Library/LaunchAgents/com.workmanagement.evening.plist"
 
 

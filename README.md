@@ -94,21 +94,175 @@ launchctl load   ~/Library/LaunchAgents/com.workmanagement.morning.plist
 launchctl load   ~/Library/LaunchAgents/com.workmanagement.evening.plist
 ```
 
-## 手動リマインダー実行方法
+## スクリプトの詳細
+
+### config.sh
+
+システム全体の設定を管理する設定ファイルです。
+
+- リマインダー時刻の設定
+- 通知音の設定
+- 作業ディレクトリの設定
+
+### generate_plist.sh
+
+launchd用のplistファイルを生成するスクリプトです。
 
 ```bash
-# 朝：昨日サマリ
-./morning_summary.sh
-# 夕：今日の記入促し
-./evening_reminder.sh
-# 任意日付の詳細ダイアログ
-./show_report_details.sh 2025-11-17
+./generate_plist.sh
 ```
 
-## 　今後の展望
+実行すると、`config.sh`の設定に基づいて以下のファイルが生成されます:
+- `com.workmanagement.morning.plist`: 朝のリマインダー設定
+- `com.workmanagement.evening.plist`: 夕方のリマインダー設定
+
+### edit_report.sh
+
+対話形式で日報を入力・編集するメインスクリプトです。
+
+```bash
+# 今日の日報を編集
+./edit_report.sh
+
+# 特定の日付の日報を編集
+./edit_report.sh 2025-11-22
+```
+
+処理フロー:
+1. 今日のタスク入力（タイトル、メモ、工数）
+2. 1日の総括メモ入力
+3. 今日の日報をJSON形式で保存
+4. 翌日のタスク入力（タイトル、メモ、優先度）
+5. 翌日の日報をJSON形式で保存
+
+### morning_summary.sh
+
+業務開始時に昨日の日報サマリを通知で表示するスクリプトです。
+
+```bash
+./morning_summary.sh
+```
+
+表示内容:
+- 完了タスク数
+- 未完了タスク数
+- メモの件数
+- 総工数
+
+通常はlaunchdから自動実行されますが、手動でも実行可能です。
+
+### evening_reminder.sh
+
+業務終了時に今日の日報記入を促す通知を表示するスクリプトです。
+
+```bash
+./evening_reminder.sh
+```
+
+通常はlaunchdから自動実行されますが、手動でも実行可能です。日報ファイルが存在しない場合は、テンプレートファイルを自動生成します。
+
+### show_report_details.sh
+
+日報の詳細をダイアログ形式で表示するスクリプトです。
+
+```bash
+# 今日の日報を表示
+./show_report_details.sh
+
+# 特定の日付の日報を表示
+./show_report_details.sh 2025-11-22
+```
+
+表示内容:
+- タスク一覧（タイトル、工数、優先度、メモ）
+- メモ一覧
+- 総工数
+
+「ファイルを開く」ボタンをクリックすると、JSONファイルを直接開くことができます。
+
+## アーキテクチャ
+
+### システム構成
+
+```
+launchd (定時実行)
+  ├── morning_summary.sh (朝: 昨日のサマリ表示)
+  └── evening_reminder.sh (夕: 今日の記入促し)
+        ↓
+  macOS通知センター
+        ↓
+  show_report_details.sh (詳細表示)
+
+ユーザー操作
+  └── edit_report.sh (日報編集)
+        ↓
+  日報ファイル (YYYY/MM/YYYY-MM-DD.json)
+```
+
+### データ構造
+
+日報ファイルはJSON形式で以下の構造を持ちます:
+
+```json
+{
+  "date": "2025-11-22",
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "タスク名",
+      "hours": 2.5,
+      "memo": "メモ内容",
+      "priority": "medium",
+      "status": "pending",
+      "created_at": "2025-11-22T10:00:00"
+    }
+  ],
+  "notes": ["総括メモ"],
+  "time_tracking": {
+    "start_time": null,
+    "end_time": null,
+    "breaks": []
+  }
+}
+```
+
+### ディレクトリ構造
+
+```
+dailyReport/
+├── config.sh                       # 設定ファイル
+├── generate_plist.sh               # plist生成
+├── edit_report.sh                  # 日報編集
+├── morning_summary.sh              # 朝のリマインダー
+├── evening_reminder.sh             # 夕方のリマインダー
+├── show_report_details.sh          # 詳細表示
+├── docs/                           # ドキュメント
+│   ├── troubleshooting.md
+│   ├── architecture.md
+│   └── CONTRIBUTING.md
+└── YYYY/MM/YYYY-MM-DD.json         # 日報ファイル
+```
+
+詳細なアーキテクチャについては、[docs/architecture.md](docs/architecture.md)を参照してください。
+
+## トラブルシューティング
+
+問題が発生した場合は、[docs/troubleshooting.md](docs/troubleshooting.md)を参照してください。
+
+主なトラブルシューティング:
+- jqがインストールされていない場合
+- launchdが起動しない場合
+- 通知が表示されない場合
+- 日報ファイルが破損した場合
+
+## 貢献
+
+プロジェクトへの貢献を歓迎します。詳細は[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)を参照してください。
+
+## 今後の展望
 
 - バグチェック
 - 運用してみて面倒に感じた箇所の改善
 - 月毎の日報サマリ作成機能
 - ブラウザを利用して画面上でレポートの確認を可能にする
-- READMEの記述精査
+- CSVエクスポート機能

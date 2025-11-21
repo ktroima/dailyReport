@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # 業務終了時の今日の日報記入リマインダースクリプト
+# launchdから定時実行され、今日の日報記入を促す通知を表示します
 
 # 設定ファイルを読み込む
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/config.sh"
 
+# 今日の日付と日報ファイルパスを取得
 TODAY=$(date +%Y-%m-%d)
 YEAR=$(date +%Y)
 MONTH=$(date +%m)
@@ -64,11 +66,13 @@ EOF
 else
     # 今日の日報が存在しない場合
     osascript -e "display notification \"今日（${TODAY}）の日報がまだ作成されていません。業務内容を記録しましょう。\" with title \"業務終了 - 今日の日報を記入\" sound name \"${NOTIFICATION_SOUND}\""
-    
+
     # ディレクトリが存在しない場合は作成
     mkdir -p "${WORK_DIR}/${YEAR}/${MONTH}"
-    
+
     # 空の日報ファイルを作成（テンプレート）
+    # HEREDOCを使用してJSONテンプレートを生成
+    # このテンプレートは後でedit_report.shで編集される
     cat > "$DAILY_REPORT" <<EOF
 {
   "date": "${TODAY}",

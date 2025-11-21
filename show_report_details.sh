@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # 日報の詳細を表示するスクリプト
-# 通知から呼び出されます
+# 通知ダイアログから呼び出され、日報の詳細をダイアログで表示します
+# 使い方: ./show_report_details.sh [YYYY-MM-DD]
 
 # 設定ファイルを読み込む
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -40,8 +41,10 @@ TASK_DETAILS=""
 if [ "$TASKS" != "[]" ] && [ -n "$TASKS" ]; then
     TASK_COUNT=$(echo "$TASKS" | jq 'length')
     TASK_DETAILS="📋 タスク一覧 (${TASK_COUNT}件):\n\n"
-    
+
     # 一時ファイルを使用してタスク詳細を取得
+    # jqの-rオプション: raw出力（引用符なし）
+    # if .memo != "" and .memo != null: メモが存在する場合のみ表示
     TASK_TEMP=$(mktemp)
     echo "$TASKS" | jq -r '.[] | "・\(.title)\n  工数: \(.hours)時間 | 優先度: \(.priority)\n  \(if .memo != "" and .memo != null then "メモ: \(.memo)" else "" end)\n"' > "$TASK_TEMP"
     TASK_DETAILS+=$(cat "$TASK_TEMP")
@@ -74,8 +77,15 @@ DETAIL_MESSAGE+="${NOTE_DETAILS}"
 
 # ダイアログで表示（長い場合はスクロール可能）
 # メッセージをエスケープ
+# sed: シングルクォートとダブルクォートをエスケープ（osascript用）
 ESCAPED_MESSAGE=$(echo "$DETAIL_MESSAGE" | sed "s/'/\\\\'/g" | sed 's/"/\\"/g')
 
+# osascriptでダイアログを表示
+# AppleScriptの処理内容:
+# 1. メッセージが長い場合（1000文字以上）は切り詰める
+# 2. display dialog: ダイアログを表示
+# 3. giving up after 30: 30秒後に自動的に閉じる
+# 4. "ファイルを開く"ボタンでJSONファイルを開く
 osascript <<EOF
 set detailText to "${ESCAPED_MESSAGE}"
 set maxLength to 1000

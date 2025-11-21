@@ -62,6 +62,13 @@ else
 fi
 
 # タスクIDのカウンター（既存のタスクから最大IDを取得）
+# jqの処理内容:
+# 1. .[] で配列の各要素を展開
+# 2. .id でIDフィールドを取得（例: "task-001"）
+# 3. scan("[0-9]+") で数字部分のみを抽出（例: "001"）
+# 4. tonumber で数値に変換（例: 1）
+# 5. max // 0 で最大値を取得、存在しない場合は0
+# 6. awk で+1して次のIDを生成
 if [ "$TODAY_TASKS" != "[]" ]; then
     TASK_ID_COUNTER=$(echo "$TODAY_TASKS" | jq -r '[.[] | .id | scan("[0-9]+") | tonumber] | max // 0' | awk '{print $1+1}')
     if [ -z "$TASK_ID_COUNTER" ] || [ "$TASK_ID_COUNTER" = "null" ]; then
@@ -99,11 +106,15 @@ input_today_tasks() {
             task_hours="0"
         fi
         
-        # タスクを追加
+        # タスクオブジェクトの作成と追加
+        # タスクIDは "task-001" 形式で3桁ゼロパディング
         current_time=$(date +%Y-%m-%dT%H:%M:%S)
         task_id="task-$(printf "%03d" $TASK_ID_COUNTER)"
         TASK_ID_COUNTER=$((TASK_ID_COUNTER + 1))
-        
+
+        # jq -n: 空の入力から新しいJSONオブジェクトを作成
+        # --arg: シェル変数をjqに渡す
+        # ($hours | tonumber): 文字列を数値に変換
         new_task=$(jq -n \
             --arg id "$task_id" \
             --arg title "$task_title" \
@@ -112,7 +123,8 @@ input_today_tasks() {
             --arg priority "$priority" \
             --arg created "$current_time" \
             '{id: $id, title: $title, hours: ($hours | tonumber), memo: $memo, priority: $priority, created_at: $created}')
-        
+
+        # 既存のタスク配列に新しいタスクを追加
         TODAY_TASKS=$(echo "$TODAY_TASKS" | jq ". + [$new_task]")
         echo "タスクを追加しました: $task_title (工数: ${task_hours}時間)"
         
@@ -147,7 +159,8 @@ input_next_day_tasks() {
         NEXT_DAY_TASKS="[]"
     fi
     
-    # タスクIDのカウンター
+    # 翌日のタスクIDカウンター（今日のタスクと同様の処理）
+    # 既存の翌日タスクから最大IDを取得し、次のIDを生成
     if [ "$NEXT_DAY_TASKS" != "[]" ]; then
         NEXT_TASK_ID_COUNTER=$(echo "$NEXT_DAY_TASKS" | jq -r '[.[] | .id | scan("[0-9]+") | tonumber] | max // 0' | awk '{print $1+1}')
         if [ -z "$NEXT_TASK_ID_COUNTER" ] || [ "$NEXT_TASK_ID_COUNTER" = "null" ]; then
@@ -215,6 +228,8 @@ input_next_day_tasks() {
 }
 
 # 今日のJSONファイルを作成
+# 引数: $1 = 出力ファイルパス
+# --argjson: JSON形式の変数をjqに渡す（配列やオブジェクト用）
 create_today_json_file() {
     local output_file="$1"
     jq -n \
@@ -234,6 +249,8 @@ create_today_json_file() {
 }
 
 # 翌日のJSONファイルを作成
+# 引数: $1 = 出力ファイルパス
+# 翌日のファイルには今日のnotesは含めず、空配列で初期化
 create_next_day_json_file() {
     local output_file="$1"
     jq -n \
