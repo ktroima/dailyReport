@@ -105,10 +105,94 @@ launchctl load   ~/Library/LaunchAgents/com.workmanagement.evening.plist
 ./show_report_details.sh 2025-11-17
 ```
 
-## 　今後の展望
+## 月次サマリ機能
+
+月間の日報を集計して統計情報を表示する機能です。
+
+### 使用方法
+
+```bash
+# 今月のサマリを表示（テキスト形式）
+./monthly_summary.sh
+
+# 特定の年月を指定
+./monthly_summary.sh -y 2025 -m 11
+
+# JSON形式で出力
+./monthly_summary.sh -f json
+
+# HTML形式で出力
+./monthly_summary.sh -f html > monthly_report.html
+
+# グラフも生成（gnuplotが必要）
+./monthly_summary.sh -g
+```
+
+### オプション
+
+- `-y YEAR`: 年を指定（例: 2025）
+- `-m MONTH`: 月を指定（例: 11）
+- `-f FORMAT`: 出力形式を指定（text|json|html）[デフォルト: text]
+- `-g`: グラフを生成（gnuplotが必要）
+- `-h`: ヘルプを表示
+
+### 集計内容
+
+月次サマリでは以下の統計情報を提供します:
+
+1. **基本統計**
+   - 日報数（日）
+   - 総作業時間（時間）
+   - 完了タスク数（個）
+   - 平均作業時間/日（時間）
+
+2. **工数の多かった日TOP5**
+   - 作業時間が多かった日をランキング形式で表示
+
+3. **よく使われたキーワードTOP10**
+   - タスクタイトルとメモから頻出キーワードを抽出
+
+### 出力形式
+
+#### テキスト形式（デフォルト）
+コンソール上で見やすいテキストフォーマットで統計情報を表示します。
+
+#### JSON形式
+機械的に処理しやすいJSON形式で出力します。他のツールとの連携に便利です。
+
+```bash
+./monthly_summary.sh -f json > summary.json
+```
+
+#### HTML形式
+ブラウザで見やすいHTML形式で出力します。
+
+```bash
+./monthly_summary.sh -f html > monthly_report.html
+# ブラウザで開く
+open monthly_report.html
+```
+
+### グラフ生成
+
+`-g` オプションを指定すると、gnuplotを使用して作業時間の推移グラフ（PNG形式）を生成します。
+
+```bash
+# グラフ生成（gnuplotが必要）
+./monthly_summary.sh -g
+
+# グラフは以下のパスに保存されます
+# monthly_summary_YYYY_MM.png
+```
+
+gnuplotのインストール:
+```bash
+brew install gnuplot
+```
+
+## 今後の展望
 
 - バグチェック
 - 運用してみて面倒に感じた箇所の改善
-- 月毎の日報サマリ作成機能
 - ブラウザを利用して画面上でレポートの確認を可能にする
 - READMEの記述精査
