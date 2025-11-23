@@ -190,7 +190,45 @@ gnuplotのインストール:
 brew install gnuplot
 ```
 
-## 今後の展望
+## AIエージェント作業履歴管理
+
+このプロジェクトでは、AIエージェントによる作業を記録・評価する仕組みを導入しています。
+
+### セッションドキュメント
+
+AIエージェントが作業を行うたびに、`docs/agent_sessions/` にセッションドキュメントが作成されます。
+
+- **記録内容**: プロンプト、実行内容、成果物、AI自己評価、人間による評価
+- **命名規則**: `YYYY-MM-DD_HHmm_task-name.md`
+- **テンプレート**: [docs/templates/session_template.md](docs/templates/session_template.md)
+
+### セッション履歴の閲覧
+
+```bash
+# 最近の5セッションを表示
+./docs/scripts/view_sessions.sh --recent 5
+
+# タグで検索（feature, bugfix, refactor, docs, test）
+./docs/scripts/view_sessions.sh --tag bugfix
+
+# 失敗したセッションのみ表示
+./docs/scripts/view_sessions.sh --status failed
+
+# セッション一覧のインデックスを生成
+./docs/scripts/generate_index.sh
+```
+
+生成されたインデックス: [docs/agent_sessions/index.md](docs/agent_sessions/index.md)
+
+### エージェントへの指示
+
+AIエージェントへのルールと指示は以下に記載されています：
+
+- [.vibe_kanban/rules/agent_instructions.md](.vibe_kanban/rules/agent_instructions.md)
+
+---
+
+## 　今後の展望
 
 - バグチェック
 - 運用してみて面倒に感じた箇所の改善
