@@ -3,41 +3,31 @@
 # 日報編集コマンド（簡略版）
 # 対話形式で日報を編集します
 
-# 設定ファイルを読み込む
+# 設定ファイルと共通関数を読み込む
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/config.sh" 2>/dev/null || WORK_DIR="${SCRIPT_DIR}"
+source "${SCRIPT_DIR}/lib.sh"
 
 # 日付の取得（オプション引数があれば使用、なければ今日）
 if [ -n "$1" ]; then
     TARGET_DATE="$1"
     # 日付形式の検証（YYYY-MM-DD）
-    if ! [[ "$TARGET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-        echo "エラー: 日付は YYYY-MM-DD 形式で指定してください（例: 2025-11-17）"
+    if ! validate_date_format "$TARGET_DATE"; then
         exit 1
     fi
 else
     # 日本時間で今日の日付を取得
-    TARGET_DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d)
+    TARGET_DATE=$(get_date_with_offset 0)
 fi
 
-YEAR=$(echo "$TARGET_DATE" | cut -d'-' -f1)
-MONTH=$(echo "$TARGET_DATE" | cut -d'-' -f2)
+YEAR=$(get_year_from_date "$TARGET_DATE")
+MONTH=$(get_month_from_date "$TARGET_DATE")
 DAILY_REPORT="${WORK_DIR}/${YEAR}/${MONTH}/${TARGET_DATE}.json"
 
-# 翌日の日付を計算（macOS用）
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOSの場合
-    NEXT_DATE=$(TZ=Asia/Tokyo date -j -v+1d -f "%Y-%m-%d" "$TARGET_DATE" +%Y-%m-%d 2>/dev/null)
-    if [ -z "$NEXT_DATE" ]; then
-        # フォールバック: 今日から1日後を計算
-        NEXT_DATE=$(TZ=Asia/Tokyo date -v+1d +%Y-%m-%d)
-    fi
-else
-    # Linuxの場合
-    NEXT_DATE=$(date -d "$TARGET_DATE +1 day" +%Y-%m-%d)
-fi
-NEXT_YEAR=$(echo "$NEXT_DATE" | cut -d'-' -f1)
-NEXT_MONTH=$(echo "$NEXT_DATE" | cut -d'-' -f2)
+# 翌日の日付を計算
+NEXT_DATE=$(calculate_date_from "$TARGET_DATE" +1)
+NEXT_YEAR=$(get_year_from_date "$NEXT_DATE")
+NEXT_MONTH=$(get_month_from_date "$NEXT_DATE")
 NEXT_DAILY_REPORT="${WORK_DIR}/${NEXT_YEAR}/${NEXT_MONTH}/${NEXT_DATE}.json"
 
 # ディレクトリが存在しない場合は作成
@@ -45,31 +35,20 @@ mkdir -p "${WORK_DIR}/${YEAR}/${MONTH}"
 mkdir -p "${WORK_DIR}/${NEXT_YEAR}/${NEXT_MONTH}"
 
 # jqのチェック
-if ! command -v jq &> /dev/null; then
-    echo "エラー: jqが必要です。インストールしてください: brew install jq"
-    exit 1
-fi
+check_jq_installed || exit 1
 
 # 既存の日報を読み込む
+TODAY_TASKS=$(load_tasks_from_report "$DAILY_REPORT")
+TODAY_NOTES=$(load_notes_from_report "$DAILY_REPORT")
+
 if [ -f "$DAILY_REPORT" ]; then
-    TODAY_TASKS=$(jq -c '.tasks // []' "$DAILY_REPORT" 2>/dev/null || echo "[]")
-    TODAY_NOTES=$(jq -c '.notes // []' "$DAILY_REPORT" 2>/dev/null || echo "[]")
     echo "既存の日報を読み込みました: ${TARGET_DATE}"
 else
-    TODAY_TASKS="[]"
-    TODAY_NOTES="[]"
     echo "新しい日報を作成します: ${TARGET_DATE}"
 fi
 
 # タスクIDのカウンター（既存のタスクから最大IDを取得）
-if [ "$TODAY_TASKS" != "[]" ]; then
-    TASK_ID_COUNTER=$(echo "$TODAY_TASKS" | jq -r '[.[] | .id | scan("[0-9]+") | tonumber] | max // 0' | awk '{print $1+1}')
-    if [ -z "$TASK_ID_COUNTER" ] || [ "$TASK_ID_COUNTER" = "null" ]; then
-        TASK_ID_COUNTER=1
-    fi
-else
-    TASK_ID_COUNTER=1
-fi
+TASK_ID_COUNTER=$(get_next_task_id_counter "$TODAY_TASKS")
 
 # 今日のタスク入力ループ
 input_today_tasks() {
@@ -141,21 +120,10 @@ input_summary_note() {
 # 翌日のタスク入力
 input_next_day_tasks() {
     # 翌日の既存データを読み込む
-    if [ -f "$NEXT_DAILY_REPORT" ]; then
-        NEXT_DAY_TASKS=$(jq -c '.tasks // []' "$NEXT_DAILY_REPORT" 2>/dev/null || echo "[]")
-    else
-        NEXT_DAY_TASKS="[]"
-    fi
-    
+    NEXT_DAY_TASKS=$(load_tasks_from_report "$NEXT_DAILY_REPORT")
+
     # タスクIDのカウンター
-    if [ "$NEXT_DAY_TASKS" != "[]" ]; then
-        NEXT_TASK_ID_COUNTER=$(echo "$NEXT_DAY_TASKS" | jq -r '[.[] | .id | scan("[0-9]+") | tonumber] | max // 0' | awk '{print $1+1}')
-        if [ -z "$NEXT_TASK_ID_COUNTER" ] || [ "$NEXT_TASK_ID_COUNTER" = "null" ]; then
-            NEXT_TASK_ID_COUNTER=1
-        fi
-    else
-        NEXT_TASK_ID_COUNTER=1
-    fi
+    NEXT_TASK_ID_COUNTER=$(get_next_task_id_counter "$NEXT_DAY_TASKS")
     
     echo ""
     echo "=========================================="
