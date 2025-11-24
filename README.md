@@ -226,6 +226,22 @@ AIエージェントへのルールと指示は以下に記載されています
 
 - [.vibe_kanban/rules/agent_instructions.md](.vibe_kanban/rules/agent_instructions.md)
 
+### 自動リマインダー（Hookによる自動化）
+
+セッション終了時に、エージェントが自動的にセッションドキュメントを作成するよう、Hookが設定されています。
+
+**仕組み：**
+- `.claude/settings.local.json` に `SessionEnd` フックを設定
+- セッション終了時に `.claude/hooks/session_end_reminder.sh` が自動実行
+- エージェントにセッション記録の作成を促すリマインダーが表示される
+
+**手動でリマインダーを確認：**
+```bash
+./.claude/hooks/session_end_reminder.sh
+```
+
+この仕組みにより、エージェントは作業終了時に必ずセッションドキュメントを作成するようになります。
+
 ---
 
 ## 　今後の展望

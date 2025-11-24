@@ -1,0 +1,6 @@
+{
+  "hooks": {
+    "user-prompt-submit": ".claude/session-start-hook.sh"
+  },
+  "description": "dailyReport project - セッション開始時にagent_instructionsを自動読み込み"
+}
