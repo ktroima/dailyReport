@@ -3,15 +3,16 @@
 # 日報編集コマンド（簡略版）
 # 対話形式で日報を編集します
 
-# 設定ファイルを読み込む
+# 設定ファイルと共通関数ライブラリを読み込む
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/config.sh" 2>/dev/null || WORK_DIR="${SCRIPT_DIR}"
+source "${SCRIPT_DIR}/lib.sh"
 
 # 日付の取得（オプション引数があれば使用、なければ今日）
 if [ -n "$1" ]; then
     TARGET_DATE="$1"
     # 日付形式の検証（YYYY-MM-DD）
-    if ! [[ "$TARGET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    if ! validate_date_format "$TARGET_DATE"; then
         echo "エラー: 日付は YYYY-MM-DD 形式で指定してください（例: 2025-11-17）"
         exit 1
     fi
@@ -20,33 +21,22 @@ else
     TARGET_DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d)
 fi
 
-YEAR=$(echo "$TARGET_DATE" | cut -d'-' -f1)
-MONTH=$(echo "$TARGET_DATE" | cut -d'-' -f2)
-DAILY_REPORT="${WORK_DIR}/${YEAR}/${MONTH}/${TARGET_DATE}.json"
+YEAR=$(get_year_from_date "$TARGET_DATE")
+MONTH=$(get_month_from_date "$TARGET_DATE")
+DAILY_REPORT=$(get_report_path "$WORK_DIR" "$TARGET_DATE")
 
-# 翌日の日付を計算（macOS用）
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOSの場合
-    NEXT_DATE=$(TZ=Asia/Tokyo date -j -v+1d -f "%Y-%m-%d" "$TARGET_DATE" +%Y-%m-%d 2>/dev/null)
-    if [ -z "$NEXT_DATE" ]; then
-        # フォールバック: 今日から1日後を計算
-        NEXT_DATE=$(TZ=Asia/Tokyo date -v+1d +%Y-%m-%d)
-    fi
-else
-    # Linuxの場合
-    NEXT_DATE=$(date -d "$TARGET_DATE +1 day" +%Y-%m-%d)
-fi
-NEXT_YEAR=$(echo "$NEXT_DATE" | cut -d'-' -f1)
-NEXT_MONTH=$(echo "$NEXT_DATE" | cut -d'-' -f2)
-NEXT_DAILY_REPORT="${WORK_DIR}/${NEXT_YEAR}/${NEXT_MONTH}/${NEXT_DATE}.json"
+# 翌日の日付を計算
+NEXT_DATE=$(calculate_date "$TARGET_DATE" 1)
+NEXT_YEAR=$(get_year_from_date "$NEXT_DATE")
+NEXT_MONTH=$(get_month_from_date "$NEXT_DATE")
+NEXT_DAILY_REPORT=$(get_report_path "$WORK_DIR" "$NEXT_DATE")
 
 # ディレクトリが存在しない場合は作成
-mkdir -p "${WORK_DIR}/${YEAR}/${MONTH}"
-mkdir -p "${WORK_DIR}/${NEXT_YEAR}/${NEXT_MONTH}"
+ensure_report_directory "$WORK_DIR" "$YEAR" "$MONTH"
+ensure_report_directory "$WORK_DIR" "$NEXT_YEAR" "$NEXT_MONTH"
 
 # jqのチェック
-if ! command -v jq &> /dev/null; then
-    echo "エラー: jqが必要です。インストールしてください: brew install jq"
+if ! check_jq_command; then
     exit 1
 fi
 
@@ -62,14 +52,7 @@ else
 fi
 
 # タスクIDのカウンター（既存のタスクから最大IDを取得）
-if [ "$TODAY_TASKS" != "[]" ]; then
-    TASK_ID_COUNTER=$(echo "$TODAY_TASKS" | jq -r '[.[] | .id | scan("[0-9]+") | tonumber] | max // 0' | awk '{print $1+1}')
-    if [ -z "$TASK_ID_COUNTER" ] || [ "$TASK_ID_COUNTER" = "null" ]; then
-        TASK_ID_COUNTER=1
-    fi
-else
-    TASK_ID_COUNTER=1
-fi
+TASK_ID_COUNTER=$(get_next_task_id_counter "$TODAY_TASKS")
 
 # 今日のタスク入力ループ
 input_today_tasks() {
@@ -148,14 +131,7 @@ input_next_day_tasks() {
     fi
     
     # タスクIDのカウンター
-    if [ "$NEXT_DAY_TASKS" != "[]" ]; then
-        NEXT_TASK_ID_COUNTER=$(echo "$NEXT_DAY_TASKS" | jq -r '[.[] | .id | scan("[0-9]+") | tonumber] | max // 0' | awk '{print $1+1}')
-        if [ -z "$NEXT_TASK_ID_COUNTER" ] || [ "$NEXT_TASK_ID_COUNTER" = "null" ]; then
-            NEXT_TASK_ID_COUNTER=1
-        fi
-    else
-        NEXT_TASK_ID_COUNTER=1
-    fi
+    NEXT_TASK_ID_COUNTER=$(get_next_task_id_counter "$NEXT_DAY_TASKS")
     
     echo ""
     echo "=========================================="
