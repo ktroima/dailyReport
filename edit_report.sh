@@ -50,71 +50,72 @@ fi
 # タスクIDのカウンター（既存のタスクから最大IDを取得）
 TASK_ID_COUNTER=$(get_next_task_id_counter "$TODAY_TASKS")
 
-# 今日のタスク入力ループ
+# 今日のタスク入力
 input_today_tasks() {
     while true; do
         echo ""
-        echo "=========================================="
+        echo "$SEPARATOR_LINE"
         echo "今日（${TARGET_DATE}）行ったタスクを入力"
-        echo "=========================================="
-        
-        # タスクタイトル
-        read -p "タスクタイトル: " task_title
-        if [ -z "$task_title" ]; then
-            echo "タスクタイトルが空のため、スキップします。"
-            read -p "タスクを追加しますか？ (y/n): " add_more
-            if [ "$add_more" != "y" ] && [ "$add_more" != "Y" ]; then
-                break
-            fi
+        echo "$SEPARATOR_LINE"
+
+        if ! read_task_common; then
+            ask_continue || break
             continue
         fi
-        
-        # メモ
-        read -p "メモ（空欄可）: " task_memo
-        
+
         # 工数
         read -p "工数（時間、例: 2.5）: " task_hours
         if [ -z "$task_hours" ]; then
-            task_hours="0"
+            task_hours="$DEFAULT_TASK_HOURS"
         fi
-        
+
         # タスクを追加
-        current_time=$(date +%Y-%m-%dT%H:%M:%S)
-        task_id="task-$(printf "%03d" $TASK_ID_COUNTER)"
+        local current_time=$(date +"$DATETIME_FORMAT")
+        local task_id="${TASK_ID_PREFIX}$(printf "%0${TASK_ID_PADDING}d" $TASK_ID_COUNTER)"
         TASK_ID_COUNTER=$((TASK_ID_COUNTER + 1))
-        
-        new_task=$(jq -n \
+
+        local new_task=$(jq -n \
             --arg id "$task_id" \
             --arg title "$task_title" \
             --arg hours "$task_hours" \
             --arg memo "$task_memo" \
-            --arg priority "$priority" \
+            --arg priority "$DEFAULT_PRIORITY" \
             --arg created "$current_time" \
             '{id: $id, title: $title, hours: ($hours | tonumber), memo: $memo, priority: $priority, created_at: $created}')
-        
+
         TODAY_TASKS=$(echo "$TODAY_TASKS" | jq ". + [$new_task]")
         echo "タスクを追加しました: $task_title (工数: ${task_hours}時間)"
-        
-        # タスクを追加するか確認
+
         echo ""
-        read -p "タスクを追加しますか？ (y/n): " add_more
-        if [ "$add_more" != "y" ] && [ "$add_more" != "Y" ]; then
-            break
-        fi
+        ask_continue || break
     done
 }
 
-# 1日の総括メモを入力
-input_summary_note() {
+# メモ入力
+input_notes() {
     echo ""
-    echo "=========================================="
+    echo "$SEPARATOR_LINE"
     echo "1日の総括メモを入力"
-    echo "=========================================="
+    echo "$SEPARATOR_LINE"
     read -p "総括メモ（空欄可）: " summary_note
     if [ -n "$summary_note" ]; then
         TODAY_NOTES=$(echo "$TODAY_NOTES" | jq ". + [\"$summary_note\"]")
         echo "総括メモを追加しました"
     fi
+}
+
+# 優先度を選択
+select_priority() {
+    echo "優先度を選択してください:"
+    echo "1) $PRIORITY_LOW"
+    echo "2) $PRIORITY_MEDIUM"
+    echo "3) $PRIORITY_HIGH"
+    read -p "選択 (1-3, デフォルト: 2): " priority_choice
+    case "$priority_choice" in
+        1) priority="$PRIORITY_LOW" ;;
+        3) priority="$PRIORITY_HIGH" ;;
+        *) priority="$PRIORITY_MEDIUM" ;;
+    esac
 }
 
 # 翌日のタスク入力
@@ -126,64 +127,46 @@ input_next_day_tasks() {
     NEXT_TASK_ID_COUNTER=$(get_next_task_id_counter "$NEXT_DAY_TASKS")
     
     echo ""
-    echo "=========================================="
+    echo "$SEPARATOR_LINE"
     echo "翌日（${NEXT_DATE}）行いたいタスクを入力"
-    echo "=========================================="
-    
+    echo "$SEPARATOR_LINE"
+
     while true; do
-        # タスクタイトル
-        read -p "タスクタイトル: " task_title
-        if [ -z "$task_title" ]; then
-            echo "タスクタイトルが空のため、スキップします。"
-            read -p "タスクを追加しますか？ (y/n): " add_more
-            if [ "$add_more" != "y" ] && [ "$add_more" != "Y" ]; then
-                break
-            fi
+        if ! read_task_common; then
+            ask_continue || break
             continue
         fi
-        
-        # メモ
-        read -p "メモ（空欄可）: " task_memo
-        
+
         # 優先度
-        echo "優先度を選択してください:"
-        echo "1) low"
-        echo "2) medium"
-        echo "3) high"
-        read -p "選択 (1-3, デフォルト: 2): " priority_choice
-        case "$priority_choice" in
-            1) priority="low" ;;
-            3) priority="high" ;;
-            *) priority="medium" ;;
-        esac
-        
+        select_priority
+
         # タスクを追加
-        current_time=$(date +%Y-%m-%dT%H:%M:%S)
-        task_id="task-$(printf "%03d" $NEXT_TASK_ID_COUNTER)"
+        local current_time=$(date +"$DATETIME_FORMAT")
+        local task_id="${TASK_ID_PREFIX}$(printf "%0${TASK_ID_PADDING}d" $NEXT_TASK_ID_COUNTER)"
         NEXT_TASK_ID_COUNTER=$((NEXT_TASK_ID_COUNTER + 1))
-        
-        new_task=$(jq -n \
+
+        local new_task=$(jq -n \
             --arg id "$task_id" \
             --arg title "$task_title" \
             --arg memo "$task_memo" \
             --arg priority "$priority" \
             --arg created "$current_time" \
             '{id: $id, title: $title, memo: $memo, priority: $priority, status: "pending", created_at: $created}')
-        
+
         NEXT_DAY_TASKS=$(echo "$NEXT_DAY_TASKS" | jq ". + [$new_task]")
         echo "タスクを追加しました: $task_title"
-        
-        # タスクを追加するか確認
+
         echo ""
-        read -p "タスクを追加しますか？ (y/n): " add_more
-        if [ "$add_more" != "y" ] && [ "$add_more" != "Y" ]; then
-            break
-        fi
+        ask_continue || break
     done
 }
 
+# ============================================
+# 保存関数
+# ============================================
+
 # 今日のJSONファイルを作成
-create_today_json_file() {
+create_today_json() {
     local output_file="$1"
     jq -n \
         --arg date "$TARGET_DATE" \
@@ -202,7 +185,7 @@ create_today_json_file() {
 }
 
 # 翌日のJSONファイルを作成
-create_next_day_json_file() {
+create_next_day_json() {
     local output_file="$1"
     jq -n \
         --arg date "$NEXT_DATE" \
@@ -219,41 +202,48 @@ create_next_day_json_file() {
         }' > "$output_file"
 }
 
-# 今日の日報を保存
-save_today_report() {
+# 日報を保存
+save_report() {
+    # 今日の日報を保存
     echo ""
     echo "今日の日報を保存しています..."
-    create_today_json_file "$DAILY_REPORT"
+    create_today_json "$DAILY_REPORT"
     echo "日報を保存しました: ${DAILY_REPORT}"
-}
 
-# 翌日の日報を保存
-save_next_day_report() {
+    # 翌日のタスクを保存
     echo ""
     echo "翌日のタスクを保存しています..."
-    create_next_day_json_file "$NEXT_DAILY_REPORT"
+    create_next_day_json "$NEXT_DAILY_REPORT"
     echo "タスクを保存しました: ${NEXT_DAILY_REPORT}"
 }
 
+# ============================================
 # メイン処理
-echo "=========================================="
-echo "日報入力: ${TARGET_DATE}"
-echo "=========================================="
+# ============================================
 
-# 1. 今日のタスク入力
-input_today_tasks
+main() {
+    # 1. ディレクトリとデータの初期化
+    setup_directories "$1"
 
-# 2. 1日の総括メモを入力
-input_summary_note
+    echo "$SEPARATOR_LINE"
+    echo "日報入力: ${TARGET_DATE}"
+    echo "$SEPARATOR_LINE"
 
-# 3. 今日の日報を保存
-save_today_report
+    # 2. 今日のタスク入力
+    input_today_tasks
 
-# 4. 翌日のタスク入力
-input_next_day_tasks
+    # 3. 1日の総括メモを入力
+    input_notes
 
-# 5. 翌日のタスクを保存
-save_next_day_report
+    # 4. 翌日のタスク入力
+    input_next_day_tasks
 
-echo ""
-echo "日報の入力が完了しました！"
+    # 5. 日報を保存
+    save_report
+
+    echo ""
+    echo "日報の入力が完了しました！"
+}
+
+# スクリプト実行
+main "$@"
